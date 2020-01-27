@@ -2,7 +2,15 @@
 
 sudo apt-get install git python3-pip libxml2-utils protobuf-compiler golang-go golang-goprotobuf-dev
 
-sudo pip3 install pyang pyangbind pytest
+sudo pip3 install pyang pyangbind pytest unzip
+
+wget https://github.com/protocolbuffers/protobuf/releases/download/v3.11.2/protoc-3.11.2-linux-x86_64.zip
+mkdir protoc
+mv protoc-3.11.2-linux-x86_64.zip ./protoc
+cd protoc
+unzip protoc-3.11.2-linux-x86_64.zip
+sudo cp ./bin/protoc /usr/local/bin/
+sudo cp -R ./include/* /usr/local/include/
 
 mkdir $HOME/go
 mkdir $HOME/go/bin
