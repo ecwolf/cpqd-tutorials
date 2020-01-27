@@ -9,9 +9,9 @@ mkdir $HOME/go/bin
 mkdir $HOME/go/src
 mkdir $HOME/go/pkg
 
-sudo cat export GOPATH=$HOME/go >> ~/.profile
-sudo cat export GOBIN=$HOME/go/bin >> ~/.profile
-sudo cat export PATH=$PATH:/usr/local/go/bin:$GOBIN >> ~/.profile
+sudo echo 'export GOPATH=$HOME/go' >> ~/.profile
+sudo echo 'export GOBIN=$HOME/go/bin' >> ~/.profile
+sudo echo 'export PATH=$PATH:/usr/local/go/bin:$GOBIN' >> ~/.profile
 sudo source ~/.profile
 
 git clone https://github.com/openconfig/ygot
