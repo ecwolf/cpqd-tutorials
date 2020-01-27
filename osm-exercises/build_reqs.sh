@@ -1,3 +1,5 @@
+sudo apt install net-tools
+
 git clone https://github.com/containernet/vim-emu
 
 wget https://osm-download.etsi.org/ftp/osm-7.0-seven/install_osm.sh
