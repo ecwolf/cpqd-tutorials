@@ -1,715 +1,420 @@
 # Exercises - Mininet
 
 These exercises will make you feel comfortable with Mininet.
+The part 3 of these exercises were extracted from https://hackmd.io/@pmanzoni/SyWm3n0HH?type=view. 
 
-This exercise is divided in three parts (and an extra 4th):
+This exercise is divided in three parts:
 
 1. Understanding Mininet Concepts
-2. Understand YANG encoding
-3. Understanding YANG-enabled API
-4. Understanding YANG-enabled transport protocols 
+2. Running Mininet Topologies
+3. Playing with Mininet shell 
 
 
-## Part 1: Understanding the YANG language
+## Part 1: Understanding Mininet Concepts
 
 
-Em um terminal da máquina virtual do Mininet (ou dentro da conexão SSH), digite:
-sudo mn --mac
-Este  comando  dará  início  ao  Mininet  e  irá  configurar  uma  pequena  rede  com  doishosts e um switch. Use também a opção–topodo comandomne descubra mais topo-logias disponíveis.
+In a terminal of the Mininet, type: 
 
-
-We will start with a simple YANG module called `demo-port` in
-[`yang/demo-port.yang`](./yang/demo-port.yang)
-
-Take a look at the model and try to derive the structure. What are valid values
-for each of the leaf nodes?
-
-This model is self contained, so it isn't too difficult to work it out. However,
-most YANG models are defined over many files that makes it very complicated to
-work out the overall structure.
-
-To make this easier, we can use a tool called `pyang` to try to visualize the
-structure of the model.
-
-
-Open a terminal, enter the yang-tutorial folder, and run `pyang` on the `demo-port.yang` model:
-
-```
-$ cd yang-tutorial
-$ pyang -f tree demo-port.yang
+```bash 
+$ sudo mn --mac
 ```
 
-You should see a tree representation of the `demo-port` module. Does this match
-your expectations?
+This command will start Mininet and will configure a small network with two hosts and a switch. Also use the option `--topo` in the mn command to discover more topologies available.
 
-*Extra Credit:* If you finish this quickly, you can try to add a new leaf node
-to `port-config` or `port-state` grouping, then rerun `pyang` and see where your
-new leaf was added.
+
+At the Mininet terminal (mininet>), execute the `net` command to observe the network created. Then run `intfs` to check all network interfaces, and check for connectivity between hosts. Type `xterm h1` or `exterm h2` into the Mininet CLI to open the terminal (console) of both hosts h1 and h2. You can now execute commands as if you are inside the Linux machine of these hosts.
+
+
+Follow the steps below:
+
+1) Access Wireshark typing wireshark in h2 xterminal. Use-o para monito-rar a interface deste host.
+2) Try to ping between h1 e h2, using h1 xterminal: `ping -c1 10.0.0.2`
+3) For each host (h1 e h2) and switch (s1):
+    3.1) Check the interfaces IP address.  
+    3.2) Check the interfaces MAC address.  
+    3.3) Check the routing table.  
+    3.4) Check the ARP table.  
+
+Tip: try to use the Linux toolset: ifconfig, route, arp, netstat, ip route, etc. At any time you can finish the mininet session terminal by typing `quit`, `exit` or `Ctrl+D`.
+
 
 ------
 
-We can also use `pyang` to visualize a more complicated set of models, like the
-set of OpenConfig models that Stratum uses.
+## Part2: Running Mininet Topologies
+
+First let's download the topology scripts:
+
+```bash
+$ git clone https://github.com/intrig-unicamp/ea080.git
+
+$ cd ea080/lab1
+```
+
+
+Run the python script, typing:
+
+```bash
+$ sudo python pratica-1-II.py
+```
+
+The script source code is shown below.
+
+```python
+import atexit
+from mininet.net import Mininet
+from mininet.topo import Topo
+from mininet.cli import CLI
+from mininet.log import info,setLogLevel
+net = None
+
+def createTopo():
+	topo=Topo()
+	#Create Nodes
+	topo.addHost("h1")
+	topo.addHost("h2")
+	topo.addHost("h3")
+	topo.addHost("h4")
+	topo.addSwitch('s1')
+	topo.addSwitch('s2')
+	topo.addSwitch('s3')
+	#Create links
+	topo.addLink('s1','s2')
+	topo.addLink('s1','s3')
+	topo.addLink('h1','s2')
+	topo.addLink('h2','s2')
+	topo.addLink('h3','s3')
+	topo.addLink('h4','h3')
+	return topo
+
+def startNetwork():
+	topo = createTopo()
+	global net
+	net = Mininet(topo=topo, autoSetMacs=True)
+	net.start()
+	CLI(net)
+
+def stopNetwork():
+	if net is not None:
+		net.stop()
+
+if __name__ == '__main__':
+	atexit.register(stopNetwork)
+	setLogLevel('info')
+    startNetwork()
+```
+
+Execute the command pingall in the mininet console, and check if pings fail (i.e., hosts not replying are represented by an X mark).
+
+:::info
+Modify the script so you can run it again and all hosts will be connected by the pingall command.
+:::
+
+
+Now, run the script pythonpratica-1-III.py (also located inside lab1 folder). 
+The script source code is shown below. Look how the link parameters were specified (bandwidth Mbps, latency ms, and frame loss ratio %).
+
+```python
+import atexit
+from mininet.net import Mininet
+from mininet.topo import Topo
+from mininet.cli import CLI
+from mininet.log import info,setLogLevel
+from mininet.link import TCLink
+net = None
+
+def createTopo():
+	topo=Topo()
+	#Create Nodes
+	topo.addHost("h1")
+	topo.addHost("h2")
+	topo.addHost("h3")
+	topo.addHost("h4")
+	topo.addSwitch('s1')
+	topo.addSwitch('s2')
+	topo.addSwitch('s3')
+	#Create links
+	topo.addLink('s1','s2',bw=100,delay='100ms',loss=10)
+	topo.addLink('s1','s3')
+	topo.addLink('h1','s2')
+	topo.addLink('h2','s2')
+	topo.addLink('h3','s3')
+	topo.addLink('h4','s3')
+	return topo
 
-These models have already been loaded into the `yang-tools` container in the
-`models` directory.
+def startNetwork():
+	topo = createTopo()
+	global net
+	net = Mininet(topo=topo, autoSetMacs=True, link=TCLink)
+	net.start()
+	CLI(net)
 
-```
-$ cd models
-$ pyang -f tree \
-    -p ietf \
-    -p openconfig \
-    -p hercules \
-    openconfig/interfaces/openconfig-interfaces.yang \
-    openconfig/interfaces/openconfig-if-ethernet.yang  \
-    openconfig/platform/* \
-    openconfig/qos/* \
-    openconfig/system/openconfig-system.yang \
-    hercules/openconfig-hercules-*.yang  | less
-$ cd -
-```
-
-You should see a tree structure of the models displayed in `less`. You can use
-the Arrow keys or `j`/`k` to scroll up and down. Type `q` to quit.
-
-In the interface model, we can see the path to enable or disable an interface:
-`interfaces/interface[name]/config/enabled`
-
-What is the path to read the number of incoming packets (`in-pkts`) on an interface?
-
-*Extra Credit:* If you have some time, take a look at the models in the
-`/models` directory or browse them on Github:
-<https://github.com/openconfig/public/tree/master/release/models>
-
-Try to find the description of the `enabled` or `in-pkts` leaf nodes.
-
-*Hint:* Take a look at the `openconfig-interfaces.yang` file.
-
-## Part 2: Understand YANG encoding
-
-There is no specific YANG data encoding, but data adhering to YANG models can be
-encoded into XML, JSON, or Protobuf (among other formats). Each of these formats
-has it's own schema format.
-
-First, we can look at YANG's first and canonical representation format XML. To
-see a empty skeleton of data encoded in XML, run:
-
-```
-$ pyang -f sample-xml-skeleton demo-port.yang
-```
-
-This skeleton should match the tree representation we saw in part 1.
-
-We can also use `pyang` to generate a DSDL schema based on the YANG model:
-
-```
-$ pyang -f dsdl demo-port.yang | xmllint --format -
-```
-
-The first part of the schema describes the tree structure, and the second part
-describes the value constraints for the leaf nodes.
-
-*Extra credit:* Try adding new speed identity (e.g. `SPEED_100G`) or changing
-the range for `port-number` values in `demo-port.yang`, then rerun `pyang -f
-dsdl`. Do you see your changes reflected in the DSDL schema?
-
-------
+def stopNetwork():
+	if net is not None:
+		net.stop()
 
-Next, we will look at encoding data using Protocol Buffers (protobuf). The
-protobuf encoding is a more compact binary encoding than XML, and libraries can
-be automatically generated for dozens of languages. We can use
-[`ygot`](https://github.com/openconfig/ygot)'s `proto_generator` to generate
-protobuf messages from our YANG model.
-
-More info about ygot see [`Getting Started`](https://github.com/openconfig/ygot/blob/master/docs/protobuf_getting_started.md).
-
+if __name__ == '__main__':
+	atexit.register(stopNetwork)
+	setLogLevel('info')
+	startNetwork()
 ```
-$ protogenerator -output_dir=./proto -package_name=tutorial demo-port.yang
-```
-
-`protogenerator` will generate two files:
-* `/proto/tutorial/demo_port/demo_port.proto`
-* `/proto/tutorial/enums/enums.proto`
-
-Open `demo_port.proto` using `less`:
 
-```
-$ less proto/tutorial/demo_port/demo_port.proto
-```
+:::info
+Using the ping command, check the rtt and loss between h1 and h2 and h1 and h4. 
+To check the network throughput use the command iperf, e.g., `iperf h1 h2` or `iperf h1 h4`
+:::
 
-This file contains a top-level Ports message that matches the structure defined
-in the YANG model. You can see that `protogenerator` also adds a
-`yext.schemapath` custom option to each protobuf message field that explicitly
-maps to the YANG leaf path. Enums (like `tutorial.enums.DemoPortSPEED`) aren't
-included in this file, but `protogenerator` puts them in a separate file:
-`enums.proto`
 
-Open `enums.proto` using `less`:
+Editing the previous topology script, try to create a (data center like) network topology as in the image below, using the following parameters:
 
-```
-$ less proto/tutorial/enums/enums.proto
 ```
-
-You should see an enum for the 10GB speed, along with any other speeds that you
-added if you completed the extra credit above.
-
-------
-
-We can also use `protogenerator` to build the protobuf messages for the
-OpenConfig models that Stratum uses:
+                                +----+
+                         +------||c1||----+
+                         |      +----+    |
+                         |                |
+                       +----+          +----+
+                     +-||d1||-+      +-||d2||-+
+                     | +----+ |      | +----+ |
+                     |        |      |        |
+                     |        |      |        |
+                   +----+  +----+  +----+  +----+
+                   ||a1||  ||a2||  ||a3||  ||a4||
+                   +----+  +----+  +----+  +----+
+                    |  |    |  |    |  |    |  |
+                   h1  h2  h3  h4  h5  h6  h7  h8
 
 ```
-$ cd models
-
-$ protogenerator \
-    -generate_fakeroot \
-    -output_dir=./proto \
-    -package_name=openconfig \
-    -exclude_modules=ietf-interfaces \
-    -compress_paths \
-    -base_import_path= \
-    -path=ietf,openconfig,hercules \
-    openconfig/interfaces/openconfig-interfaces.yang \
-    openconfig/interfaces/openconfig-if-ip.yang \
-    openconfig/lacp/openconfig-lacp.yang \
-    openconfig/platform/openconfig-platform-linecard.yang \
-    openconfig/platform/openconfig-platform-port.yang \
-    openconfig/platform/openconfig-platform-transceiver.yang \
-    openconfig/platform/openconfig-platform.yang \
-    openconfig/system/openconfig-system.yang \
-    openconfig/vlan/openconfig-vlan.yang \
-    hercules/openconfig-hercules-interfaces.yang \
-    hercules/openconfig-hercules-platform-chassis.yang \
-    hercules/openconfig-hercules-platform-linecard.yang \
-    hercules/openconfig-hercules-platform-node.yang \
-    hercules/openconfig-hercules-platform-port.yang \
-    hercules/openconfig-hercules-platform.yang \
-    hercules/openconfig-hercules-qos.yang \
-    hercules/openconfig-hercules.yang
-
-$ cd -
-```
-
-You will find `openconfig.proto` and `enums.proto` in the `proto/openconfig` directory.
-
-*Extra Credit:* Try to find the Protobuf message fields used to enable a port or
-get the ingress packets counter in the protobuf messages.
-
-*Hint:* Searching by schemapath might help.
-
-------
-
-`ygot` can also be used to generate Go structs that adhere to the YANG model
-and that are capable of validating the structure, type, and values of data.
 
-*Extra Credit:* If you have extra time or are interested in using YANG ang Go
-together, try generating Go code for the `demo-port` module.
+* Switches Core (c1) to distribution switches (d1 and d2): 10 Gbps, 1 ms.
+* Distribution switches (d1 and d2) to access switches (a1, a2, a3, a4): 1 Gbps, 3 ms.
+* Access switches to hosts (h1-8): 100 Mbps, 5 ms.
 
-```
-$ mkdir -p ./goSrc
-$ generator -output_dir=./goSrc -package_name=tutorial demo-port.yang
-```
+:::info
+Modify the topology file to insert 15% loss in the link between host h8  switch a4. How to measure the packet loss to h8 using ping? What's the average loss you see in practice?
+Using `iperf`, measure the throughput between: h1 and h2, h1 and h3, and h1 and h5.
+:::
 
-Take a look at the Go files in `/goSrc`.
+Change the link parameters as following:
+* Switches Core (c1) to distribution switches (d1 and d2): 1 Gbps, 2 ms.
+* Distribution switches (d1 and d2) to access switches (a1, a2, a3, a4): 100 Mbps, 2 ms.
+* Access switches to hosts (h1-8): 10 Mbps, 2 ms.
 
-You can now quit out of the container (using `Ctrl-D` or `exit`).
+:::info
+Using `iperf`, measure the throughput between: h1 and h2, h1 and h3, and h1 and h5.
+Explain the differences from the previous exercise.
+:::
+___
 
+## Part3: Playing with Mininet shell 
 
-## Part 3: Understanding YANG-enabled API
 
-This part used pyang to generate a python API that is used to fill the YANG
-model and explore parsing and serialization in different formats.
+Create the following network:
 
-Use pyang and pyandbind to generate all the doc files for demo-port.yang and
-validate the file in examples/ folder against the python generated source code
-demo_port.py.
+    $ sudo mn --topo=single,3 --controller=none --mac
+    
 
-```
-$ make all
-```
 
-Check in the ./doc folder the created .uml .tree and .html files. 
+* `--controller=none`  means that commands will be provided manually
+* `--mac`  means that MACs will be simplified
 
-Open the source code file named demo_port.py and see the syntax generated by
-pyangbind. 
+Now execute the `dump` and the `net` commands just to check the topology.
 
-And finally take a look at the file located in the examples folder named 
-demo_ports_01.yaml. See how this structure matches the tree elaborated by 
-the doc file. 
+The command to see how switch `s1` ports map to OpenFlow Port (OFP) numbers is:
 
-Now, chekc the construction of a python library from scratch, and how it
-can be serialized into JSON.
+    mininet> sh ovs-ofctl show s1 
 
+:::warning
+**`sh`** allows to execute shell commands inside mininet. You could execute them from a separate xterm using sudo, i.e., `$ sudo ovs-ofctl show s1`
+:::
 
-```
-$ /usr/bin/python3 serialize_demo_port.py
-```
 
-Open the file serialize_demo_port.py and check how to load the demo_port.py
-source file and fill the data structure offered by the YANG module demo-port.
+Let's create the first flow entry:
 
+    mininet> sh ovs-ofctl add-flow s1 action=normal
 
-## Part 4 (EXTRA): Understanding YANG-enabled transport protocols
+**`normal`** means traditional switch behaviour, that is the classical switch forwarding operations. Let's test with `pingall`.
 
-This is the last part of the: ONF Connect 2019 Next-Gen SDN Tutorial.
-Source material can be obtained: https://github.com/opennetworkinglab/ngsdn-tutorial.
+:::danger
+What's the result? Everything was connected?
+:::
 
-To build the dependencies for this part, follow the steps below.
+Now execute:
 
-```
-$ git clone https://github.com/opennetworkinglab/ngsdn-tutorial
-$ cd ~/ngsdn-tutorial
-$ git pull origin master
-$ make pull-deps
-```
+    mininet> sh ovs-ofctl dump-flows s1
 
-There are several YANG-model agnostic protocols that can be used to get or set
-data that adheres to a model, like NETCONF, RESTCONF, and gNMI.
+:::danger
+What means the info output from the command above?
+:::
 
-This part focuses on using the protobuf encoding over gNMI.
+Delete the entry (the flow) using:
 
-First, make sure that your Mininet container is still running.
+    mininet> sh ovs-ofctl del-flows s1
+    
+this command deletes all flows in s1. Now execute once again:
 
-```
-$ make start
-docker-compose up -d
-mininet is up-to-date
-onos is up-to-date
-```
+    mininet> sh ovs-ofctl dump-flows s1
 
-If you see the following output, then Mininet was not running:
+You'll see that there are no moree flows defined.
 
-```
-Starting mininet ... done
-Starting onos    ... done
-```
+Now execute once again:
 
-You will need to go back to Exercise 1 and install forwarding rules to
-re-establish pings between `h1a` and `h1b` for later parts of this exercise.
+    mininet> pingall
 
-Next, we will use a [gNMI client CLI](https://github.com/Yi-Tseng/Yi-s-gNMI-tool)
-to read the all of the configuration from the Stratum switche `leaf1` in our
-Mininet network:
+:::danger
+What happens? Why?
+:::
 
-```
-$ util/gnmi-cli --grpc-addr localhost:50001 get /
-```
 
-The first part of the output shows the request that was made by the CLI:
-```
-REQUEST
-path {
-}
-type: CONFIG
-encoding: PROTO
-```
+### Using layer 1 data
 
-The path being requested is the empty path (which means the root of the config
-tree), the type of data is just the config tree, and the requested encoding for
-the response is protobuf.
+In this part you will work at the physical ports level. We want to programme the switch so that everything that comes at the switch s1 from OpenFlow Port 1 is sent out to OpenFlow Port 2, and vice-versa.
 
-The second part of the output shows the response from Stratum:
-```
-RESPONSE
-notification {
-  update {
-    path {
-    }
-    val {
-      any_val {
-        type_url: "type.googleapis.com/openconfig.Device"
-        value: \252\221\231\304\001\... TRUNCATED
-      }
-    }
-  }
-}
-```
+The required commands are:
 
-You can see that Stratum provides a response of type `openconfig.Device`, which
-is the top-level message defined in `openconfig.proto`. The response is the
-binary encoding of the data based on the protobuf message.
+    mininet> sh ovs-ofctl add-flow s1 priority=500,in_port=1,actions=output:2
+    mininet> sh ovs-ofctl add-flow s1 priority=500,in_port=2,actions=output:1
+    
+The two instructions basically indicate the switch that what enters from port 1 has to be forwarded to port2... and vice-versa.
 
-The value is not very human readable, but we can translate the reply using a
-utility that converts between the binary and textual representations of the
-protobuf message.
+:::danger
+Now run,
+`mininet> h1 ping -c2 h2 `
+and,
+`mininet> h3 ping -c2 h2`
+What happens? Why?
+:::
 
-We can rerun the command, but this time pipe the output through the converter
-utility (then pipe that output to `less` to make scrolling easier):
+Now execute once again:
 
-```
-$ util/gnmi-cli --grpc-addr localhost:50001 get / | util/oc-pb-decoder | less
-```
+    mininet> sh ovs-ofctl dump-flows s1
 
-The contents of the response should be easier to read. Scroll down to the first
-`interface`. Is the interface enabled? What is the speed of the port?
+Now you can see the two newly created flows and the infos about them. The priority value is important. If a packet enters a switch and there are various rules, only the one with higher value is executed.
 
-*Extra credit:* Can you find `in-pkts`? If not, why do you think they are
-missing?
+Let's add another flow:
 
--------
+    mininet> sh ovs-ofctl add-flow s1 priority=32768,action=drop
 
-One of the benefits to gNMI is it's "schema-less" encoding that allows clients
-or devices to update only the paths that need to be updated. This is
-particularly useful for subscriptions.
+This flow has an higher priority (32768 which corresponds to the defaults value; Priorities range between 0 and 65535.)
 
-First, let's try out the schema-less representation by requesting the
-configuration port between `leaf1` and `h1a`:
+:::danger
+What's the effect of adding this flow? Try it with ping!
+:::
 
-```
-$ util/gnmi-cli --grpc-addr localhost:50001 get \
-    /interfaces/interface[name=leaf1-eth3]/config
-```
+Let's now eliminate such the command below (it deletes the flow with all the default parameters
+):
 
-You should see this response containing 2 leafs under config - **enabled** and
-**health-indicator**:
+    mininet> sh ovs-ofctl del-flows s1 --strict
+    
 
-```
-RESPONSE
-notification {
-  update {
-    path {
-      elem {
-        name: "interfaces"
-      }
-      elem {
-        name: "interface"
-        key {
-          key: "name"
-          value: "leaf1-eth3"
-        }
-      }
-      elem {
-        name: "config"
-      }
-      elem {
-        name: "enabled"
-      }
-    }
-    val {
-      bool_val: true
-    }
-  }
-}
-notification {
-  update {
-    path {
-      elem {
-        name: "interfaces"
-      }
-      elem {
-        name: "interface"
-        key {
-          key: "name"
-          value: "leaf1-eth3"
-        }
-      }
-      elem {
-        name: "config"
-      }
-      elem {
-        name: "health-indicator"
-      }
-    }
-    val {
-      string_val: "GOOD"
-    }
-  }
-}
-```
+Try again ping.
 
-The schema-less representation provides and `update` for each leaf containing
-both the path the value of the leaf. You can confirm that the interface
-is enabled (set to `true`).
+==Now delete all the flows in the switch==
 
-Next, we will subscribe to the ingress unicast packet counters for the interface
-on `leaf1` attached to `h1a` (port 3):
 
-```
-$ util/gnmi-cli --grpc-addr localhost:50001 \
-    --interval 1000 sub-sample \
-    /interfaces/interface[name=leaf1-eth3]/state/counters/in-unicast-pkts
-```
+### Using layer 2 data
 
-The first part of the output shows the request being made by the CLI:
-```
-REQUEST
-subscribe {
-  subscription {
-    path {
-      elem {
-        name: "interfaces"
-      }
-      elem {
-        name: "interface"
-        key {
-          key: "name"
-          value: "leaf1-eth3"
-        }
-      }
-      elem {
-        name: "state"
-      }
-      elem {
-        name: "counters"
-      }
-      elem {
-        name: "in-unicast-pkts"
-      }
-    }
-    mode: SAMPLE
-    sample_interval: 1000
-  }
-  updates_only: true
-}
-```
+In this section you will repeat the same operations but instead of using the port numbers, using the MAC addresses of the hosts. Since we execute mininet with the **`--mac option`**, the hosts will have simplified MAC addresses:
 
-We have the subscription path, the type of subscription (sampling) and the
-sampling rate (every 1000ms, or 1s).
+Execute the command below:
 
-The second part of the output is a stream of responses:
-```
-RESPONSE
-update {
-  timestamp: 1567895852136043891
-  update {
-    path {
-      elem {
-        name: "interfaces"
-      }
-      elem {
-        name: "interface"
-        key {
-          key: "name"
-          value: "leaf1-eth3"
-        }
-      }
-      elem {
-        name: "state"
-      }
-      elem {
-        name: "counters"
-      }
-      elem {
-        name: "in-unicast-pkts"
-      }
-    }
-    val {
-      uint_val: 1592
-    }
-  }
-}
-```
+    mininet> sh ovs-ofctl add-flow s1 dl_src=00:00:00:00:00:01,dl_dst=00:00:00:00:00:02,actions=output:2
+    mininet> sh ovs-ofctl add-flow s1 dl_src=00:00:00:00:00:02,dl_dst=00:00:00:00:00:01,actions=output:1
 
-Each response has a timestamp, path, and new value. Because we are sampling, you
-should see a new update printed every second. Leave this running, while we
-generate some traffic.
+Try `pingall` to see if it works. As you will see it doesn't work since ping works at IP level and the first thing it does is to use ARP to find out the MAC addresses of the different hosts. Our switch, with the rules it currently has, it's filtering out ARP data traffic.
+ARP is a broadcast protocol so we need to add another rule:
 
-In another window, open the Mininet CLI and start a ping:
+    mininet> sh ovs-ofctl add-flow s1 dl_type=0x806,nw_proto=1,action=flood
 
-```
-$ make mn-cli
-*** Attaching to Mininet CLI...
-*** To detach press Ctrl-D (Mininet will keep running)
-mininet> h1a ping h1b
-```
+This rule adds a flow that "floods" all Ethernet frames of type 0x806 (ARP) to all the ports of the switch. `nw_proto=1` indicate an "ARP request". Since the replies in ARP are unicast,  we already have the right flows set.
 
-In the first window, you should see the `uint_val` increase by 1 every second
-while your ping is still running. (If it's not exactly 1, then there could be
-other traffic like NDP messages contributing to the increase.)
+we now obtain:
 
-You can stop the gNMI subscription using `Ctrl-C`.
+    mininet-wifi> pingall
+    *** Ping: testing ping reachability
+    h1 -> h2 X 
+    h2 -> h1 X 
+    h3 -> X X 
+    *** Results: 66% dropped (2/6 received)
 
-------
+which basically means that now h1 and h2 are in contact but h3 still is disconnected.
 
-Finally, we will monitor link events using gNMI's on-change subscriptions.
+==Now delete all the flows in the switch==
 
-Start a subscription for the operational status of the first switch's first port:
 
-```
-$ util/gnmi-cli --grpc-addr localhost:50001 sub-onchange \
-    /interfaces/interface[name=leaf1-eth3]/state/oper-status
-```
+### Using layer 3 data
 
-You should immediately see a response which indicates that port 1 is `UP`:
+We'll now use layer 3 (IP) infos for the creation of flows.
 
-```
-RESPONSE
-update {
-  timestamp: 1567896668419430407
-  update {
-    path {
-      elem {
-        name: "interfaces"
-      }
-      elem {
-        name: "interface"
-        key {
-          key: "name"
-          value: "leaf1-eth3"
-        }
-      }
-      elem {
-        name: "state"
-      }
-      elem {
-        name: "oper-status"
-      }
-    }
-    val {
-      string_val: "UP"
-    }
-  }
-}
-```
+All hosts will talk one to another, and also we will give priority to data coming from h3 using DSCP, that is using DiffServ. In Openflow there are many various rules to modify packet contents, this is a basic example.
 
-In the shell running the Mininet CLI, let's take down the interface on `leaf1`
-connected to `h1a`:
+:::warning
+Differentiated services or DiffServ is a computer networking architecture that specifies a simple and scalable mechanism for classifying and managing network traffic and providing quality of service (QoS) on modern IP networks. DiffServ can, for example, be used to provide low-latency to critical network traffic such as voice or streaming media while providing simple best-effort service to non-critical services such as web traffic or file transfers.
+:::
 
-```
-mininet> sh ifconfig leaf1-eth3 down
-```
+So we first start by excuting:
 
-You should see a response in your gNMI CLI window showing that the interface on
-`leaf1` connected to `h1a` is `DOWN`:
+    mininet> sh ovs-ofctl add-flow s1 priority=500,dl_type=0x800,nw_src=10.0.0.0/24,nw_dst=10.0.0.0/24,actions=normal
+    mininet> sh ovs-ofctl add-flow s1 priority=800,dl_type=0x800,nw_src=10.0.0.3,nw_dst=10.0.0.0/24,actions=mod_nw_tos:184,normal
+    
 
-```
-RESPONSE
-update {
-  timestamp: 1567896891549363399
-  update {
-    path {
-      elem {
-        name: "interfaces"
-      }
-      elem {
-        name: "interface"
-        key {
-          key: "name"
-          value: "leaf1-eth3"
-        }
-      }
-      elem {
-        name: "state"
-      }
-      elem {
-        name: "oper-status"
-      }
-    }
-    val {
-      string_val: "DOWN"
-    }
-  }
-}
-```
+:::danger
+Describe what the config lines above mean!
+:::
 
-We can bring back the interface using the following Mininet command:
+:::warning
+We use the 184 since, to specify the 46 DSCP value in the IP TOS field, we have to shift it 2 bits on the left according to the meaning of the bits of TOS field.
+:::
 
-```
-mininet> sh ifconfig leaf1-eth3 up
-```
+Now we have to again enable ARP. We'll do it in a slightly different way:
 
-You should see another response in your gNMI CLI window that indicates the
-interface is `UP`.
+    mininet> sh ovs-ofctl add-flow s1 arp,nw_dst=10.0.0.1,actions=output:1
+    mininet> sh ovs-ofctl add-flow s1 arp,nw_dst=10.0.0.2,actions=output:2
+    mininet> sh ovs-ofctl add-flow s1 arp,nw_dst=10.0.0.3,actions=output:3
 
-------
+In this case we are not using flooding, which can be a useful behaviour (imagine a 24 ports switch)
 
-*Extra credit:* We can also use gNMI to disable or enable an interface.
+:::danger
+Try if it works with `pingall`. Check with wireshark if packets have DSCP modified from and to h3.
+:::
 
-Leave your gNMI subscription for operational status changes running.
+==Now delete all the flows in the switch==
 
-In the Mininet CLI, start a ping between two hosts.
 
-```
-mininet> h1a ping h1b
-```
+### Using layer 4 data
 
-You should see replies being showed in the Mininet CLI.
+To conclude we'll see how the same can be done at layer 4, the application layer. In this example a simple python web server (the one you used in the previous session) will be executed in host 3, and host 1 and host 2 will connect to that server that runs at port 80.
 
-In a third window, we will use the gNMI CLI to change the configuration value of
-the `enabled` leaf from `true` to `false`.
+So let's start the web server on h3:
 
-```
-$ util/gnmi-cli --grpc-addr localhost:50001 set \
-    /interfaces/interface[name=leaf1-eth3]/config/enabled \
-    --bool-val false
-```
+    mininet> h3 python -m SimpleHTTPServer 80 &
+    
+Let's enable ARP (in a simpler way):
 
-In the gNMI set window, you should see request indicating the new value for the
-`enabled` leaf:
+    mininet> sh ovs-ofctl add-flow s1 arp,actions=normal
 
-```
-REQUEST
-update {
-  path {
-    elem {
-      name: "interfaces"
-    }
-    elem {
-      name: "interface"
-      key {
-        key: "name"
-        value: "leaf1-eth3"
-      }
-    }
-    elem {
-      name: "config"
-    }
-    elem {
-      name: "enabled"
-    }
-  }
-  val {
-    bool_val: false
-  }
-}
-```
+Let's introduce a rule that forwards all TCP traffic (`nw_proto=6`) with destination port 80, to the switch port 3:
 
-In the gNMI subscription window, you should see a new response indicating that
-the operational status of `leaf1-eth3` is `DOWN`:
+    mininet> sh ovs-ofctl add-flow s1 priority=500,dl_type=0x800,nw_proto=6,tp_dst=80,actions=output:3
+    
+:::warning
+This rule could be used to redirect all the data traffic to a firewall that is connected to a specific port.
+:::
+    
+And, finally, we have to add this rule:
 
-```
-RESPONSE
-update {
-  timestamp: 1567896891549363399
-  update {
-    path {
-      elem {
-        name: "interfaces"
-      }
-      elem {
-        name: "interface"
-        key {
-          key: "name"
-          value: "leaf1-eth3"
-        }
-      }
-      elem {
-        name: "state"
-      }
-      elem {
-        name: "oper-status"
-      }
-    }
-    val {
-      string_val: "DOWN"
-    }
-  }
-}
-```
+    mininet> sh ovs-ofctl add-flow s1 priority=800,ip,nw_src=10.0.0.3,actions=normal
+    
+:::danger
+What does this last rule mean?
+:::
 
-And in the Mininet CLI window, you should observe that the ping has stopped
-working.
+    
+To check whether eveything works, try:
 
-Next, we can re-nable the port:
-```
-$ util/gnmi-cli --grpc-addr localhost:50001 set \
-    /interfaces/interface[name=leaf1-eth3]/config/enabled \
-    --bool-val true
-```
+    mininet> h1 curl h3
+    
 
-You should see another update in the gNMI subscription window indicating the
-interface is `UP`, and the ping should resume in the Mininet CLI wondow.
+___
 
 ## Congratulations!
 
-Now you know a little about YANG!
+Now you know a little about Mininet!
