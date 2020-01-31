@@ -1,711 +1,265 @@
-# Exercises - Yang
-
-These exercises will make you feel comfortable with YANG.
-Parts 1, 2 and 4 are based on the ONF Connect 2019 Next-Gen SDN Tutorial.
-Source material can be obtained: https://github.com/opennetworkinglab/ngsdn-tutorial.
-
-This exercise is divided in three parts (and an extra 4th):
-
-1. Understanding the YANG language
-2. Understand YANG encoding
-3. Understanding YANG-enabled API
-4. Understanding YANG-enabled transport protocols 
+# Exercises - Ryu and OpenFlow
 
 
-## Part 1: Understanding the YANG language
+These exercises are divided in three parts:
 
-We will start with a simple YANG module called `demo-port` in
-[`yang/demo-port.yang`](./yang/demo-port.yang)
-
-Take a look at the model and try to derive the structure. What are valid values
-for each of the leaf nodes?
-
-This model is self contained, so it isn't too difficult to work it out. However,
-most YANG models are defined over many files that makes it very complicated to
-work out the overall structure.
-
-To make this easier, we can use a tool called `pyang` to try to visualize the
-structure of the model.
+1. OpenFlow Intro
+2. Learning Switch
+3. REST API
 
 
-Open a terminal, enter the yang-tutorial folder, and run `pyang` on the `demo-port.yang` model:
+## Part 1: OpenFlow Intro
 
-```
-$ cd yang-tutorial
-$ pyang -f tree demo-port.yang
+
+Start a first topology:
+
+```bash
+$ sudo mn --mac --switch ovsk --controller remote
 ```
 
-You should see a tree representation of the `demo-port` module. Does this match
-your expectations?
+In another terminal, start Wireshark to monitor control packets  from switch s1. Select the lo interface and filter on openflow_v4 packets to look the OpenFlow messages among the switch and the controller (to be started).
 
-*Extra Credit:* If you finish this quickly, you can try to add a new leaf node
-to `port-config` or `port-state` grouping, then rerun `pyang` and see where your
-new leaf was added.
-
-------
-
-We can also use `pyang` to visualize a more complicated set of models, like the
-set of OpenConfig models that Stratum uses.
-
-These models have already been loaded into the `yang-tools` container in the
-`models` directory.
-
-```
-$ cd models
-$ pyang -f tree \
-    -p ietf \
-    -p openconfig \
-    -p hercules \
-    openconfig/interfaces/openconfig-interfaces.yang \
-    openconfig/interfaces/openconfig-if-ethernet.yang  \
-    openconfig/platform/* \
-    openconfig/qos/* \
-    openconfig/system/openconfig-system.yang \
-    hercules/openconfig-hercules-*.yang  | less
-$ cd -
+```bash
+$ sudo wireshark -i lo -k &
 ```
 
-You should see a tree structure of the models displayed in `less`. You can use
-the Arrow keys or `j`/`k` to scroll up and down. Type `q` to quit.
+The Ryu controller detains a management framework responsible for the support of control plane with data plane equipments. So, let's start the main ryu framework without any Application. In another terminal enter:
 
-In the interface model, we can see the path to enable or disable an interface:
-`interfaces/interface[name]/config/enabled`
+```bash
+$ ryu-manager
+``` 
 
-What is the path to read the number of incoming packets (`in-pkts`) on an interface?
+Observe the packets shown in Wireshark.
 
-*Extra Credit:* If you have some time, take a look at the models in the
-`/models` directory or browse them on Github:
-<https://github.com/openconfig/public/tree/master/release/models>
+:::danger
+What messages the OpenFlow protocol presents and what is their function?
+:::
 
-Try to find the description of the `enabled` or `in-pkts` leaf nodes.
+Go back to the mininet terminal and have a ping between h1 and h2
 
-*Hint:* Take a look at the `openconfig-interfaces.yang` file.
-
-## Part 2: Understand YANG encoding
-
-There is no specific YANG data encoding, but data adhering to YANG models can be
-encoded into XML, JSON, or Protobuf (among other formats). Each of these formats
-has it's own schema format.
-
-First, we can look at YANG's first and canonical representation format XML. To
-see a empty skeleton of data encoded in XML, run:
-
-```
-$ pyang -f sample-xml-skeleton demo-port.yang
+```bash
+mininet> h1 ping h2 -c5
 ```
 
-This skeleton should match the tree representation we saw in part 1.
+In wireshark, observe the packets again.
 
-We can also use `pyang` to generate a DSDL schema based on the YANG model:
+:::danger
+What the ping concluded with success?
 
-```
-$ pyang -f dsdl demo-port.yang | xmllint --format -
-```
+Was there any message exchanged between the switch and the controller?
 
-The first part of the schema describes the tree structure, and the second part
-describes the value constraints for the leaf nodes.
+If a controller application was implemented, what would be the common expected behaviour (considering the Openflow protocol) in this situation?
+:::
 
-*Extra credit:* Try adding new speed identity (e.g. `SPEED_100G`) or changing
-the range for `port-number` values in `demo-port.yang`, then rerun `pyang -f
-dsdl`. Do you see your changes reflected in the DSDL schema?
 
-------
+## Part 2: Learning Switch
 
-Next, we will look at encoding data using Protocol Buffers (protobuf). The
-protobuf encoding is a more compact binary encoding than XML, and libraries can
-be automatically generated for dozens of languages. We can use
-[`ygot`](https://github.com/openconfig/ygot)'s `proto_generator` to generate
-protobuf messages from our YANG model.
+Let's implement our first Openflow App, a learning switch. Let's discuss how a switch normally works and introduct such behavior in the Openflow App.
 
-More info about ygot see [`Getting Started`](https://github.com/openconfig/ygot/blob/master/docs/protobuf_getting_started.md).
+1. A learning switch forwards packets based on the knowledge extracted from MAC addresses. When receiving a packet, if the switch does not have any rule that matches the packet header to forward it, it floods the packet in all the interfaces, otherwise it forwards the packet to the right MAC destination rule in the correct output interface.
+2. In the Openflow App, in case the switch does not know the forwarding rule for a packet it will trigger a Packet-In message to the controller, that will handler the learning of MAC addresses associated with the switch interfaces and program them accordingly. In this way, similarly to a common learning switch the controller will trigger the flooding of packets in all interfaces, receive another Packet-In with the replied ARP and program the rule learned (i.e., a packet with the replied MAC address will be forwarded to that incoming interface).
 
-```
-$ protogenerator -output_dir=./proto -package_name=tutorial demo-port.yang
-```
 
-`protogenerator` will generate two files:
-* `/proto/tutorial/demo_port/demo_port.proto`
-* `/proto/tutorial/enums/enums.proto`
+### Ryu Controller
+Let's look into some Ryu elements in order to conclude the exercise. For more information take a look at  https://github.com/osrg/ryu http://ryu.readthedocs.io/en/latest/
 
-Open `demo_port.proto` using `less`:
+1. ofp_event: this class abstracts the allowed events the data plane can trigger to the control plane. The Ryu controller can be oriented on these events, and take actions when they take place. In the example below such artifact is used through a python decorator, executing a function when the event PacketIn takes place. 
 
-```
-$ less proto/tutorial/demo_port/demo_port.proto
+```python
+@set_ev_cls(ofp_event.EventOFPPacketIn)
+    def handle_packet_in():
+        learn_packet_in_fields()
+        install_flows()
 ```
 
-This file contains a top-level Ports message that matches the structure defined
-in the YANG model. You can see that `protogenerator` also adds a
-`yext.schemapath` custom option to each protobuf message field that explicitly
-maps to the YANG leaf path. Enums (like `tutorial.enums.DemoPortSPEED`) aren't
-included in this file, but `protogenerator` puts them in a separate file:
-`enums.proto`
 
-Open `enums.proto` using `less`:
+2. ofproto_parser: is the instantiated object that is responsible for the creation and serialization of Openflow messages. With this object instantiated we can interpret and send messages encoded in API that Ryu enables for the Openflow protocol. Each version of the Openflow protocol has a particular parser. The command below exemplifies how to get the parser instance from a switch abstracted instance named datapath.
 
-```
-$ less proto/tutorial/enums/enums.proto
+```python
+parser = datapath.ofproto_parser
 ```
 
-You should see an enum for the 10GB speed, along with any other speeds that you
-added if you completed the extra credit above.
+3. datapath: is the object instance that abstracts a switch interconnected with the controller. It detains an ofproto_parser as its class member, "knowing" with Openflow version is used in the communication among the controller and switch. A datapath instance can be obtained from packet messages received by the controller events, as shown below.
 
-------
-
-We can also use `protogenerator` to build the protobuf messages for the
-OpenConfig models that Stratum uses:
-
-```
-$ cd models
-
-$ protogenerator \
-    -generate_fakeroot \
-    -output_dir=./proto \
-    -package_name=openconfig \
-    -exclude_modules=ietf-interfaces \
-    -compress_paths \
-    -base_import_path= \
-    -path=ietf,openconfig,hercules \
-    openconfig/interfaces/openconfig-interfaces.yang \
-    openconfig/interfaces/openconfig-if-ip.yang \
-    openconfig/lacp/openconfig-lacp.yang \
-    openconfig/platform/openconfig-platform-linecard.yang \
-    openconfig/platform/openconfig-platform-port.yang \
-    openconfig/platform/openconfig-platform-transceiver.yang \
-    openconfig/platform/openconfig-platform.yang \
-    openconfig/system/openconfig-system.yang \
-    openconfig/vlan/openconfig-vlan.yang \
-    hercules/openconfig-hercules-interfaces.yang \
-    hercules/openconfig-hercules-platform-chassis.yang \
-    hercules/openconfig-hercules-platform-linecard.yang \
-    hercules/openconfig-hercules-platform-node.yang \
-    hercules/openconfig-hercules-platform-port.yang \
-    hercules/openconfig-hercules-platform.yang \
-    hercules/openconfig-hercules-qos.yang \
-    hercules/openconfig-hercules.yang
-
-$ cd -
+```python
+@set_ev_cls(ofp_event.EventOFPPacketIn)
+    def handle_packet_in(self, ev):
+       # ev : received event
+       # msg: event message (i.e., as the decorator shows, a Packet In)
+       msg = ev.msg
+       datapath = msg.datapath
+       out = creates_packet_out()
+       datapath.send_msg(out)
+       return 1
 ```
 
-You will find `openconfig.proto` and `enums.proto` in the `proto/openconfig` directory.
+4. ofproto: contains the specific definitions of the Openflow protocol.
 
-*Extra Credit:* Try to find the Protobuf message fields used to enable a port or
-get the ingress packets counter in the protobuf messages.
 
-*Hint:* Searching by schemapath might help.
+### Openflow 1.3
 
-------
+If not yet ended, finish the previous mininet console, and start a new on using:
 
-`ygot` can also be used to generate Go structs that adhere to the YANG model
-and that are capable of validating the structure, type, and values of data.
-
-*Extra Credit:* If you have extra time or are interested in using YANG ang Go
-together, try generating Go code for the `demo-port` module.
-
-```
-$ mkdir -p ./goSrc
-$ generator -output_dir=./goSrc -package_name=tutorial demo-port.yang
+```bash
+$ sudo mn –-mac –-switch ovsk –-controller remote –-arp
 ```
 
-Take a look at the Go files in `/goSrc`.
+Start Wireshark to monitor the packets among switch s1 and the controller (i.e., capture packets on the interface lo and apply the filter openflow_v4).
 
-You can now quit out of the container (using `Ctrl-D` or `exit`).
-
-
-## Part 3: Understanding YANG-enabled API
-
-This part used pyang to generate a python API that is used to fill the YANG
-model and explore parsing and serialization in different formats.
-
-Use pyang and pyandbind to generate all the doc files for demo-port.yang and
-validate the file in examples/ folder against the python generated source code
-demo_port.py.
-
-```
-$ make all
+```bash
+$ sudo wireshark -i lo -k &
 ```
 
-Check in the ./doc folder the created .uml .tree and .html files. 
+In another terminal check the flows installed in the switch s1.
 
-Open the source code file named demo_port.py and see the syntax generated by
-pyangbind. 
-
-And finally take a look at the file located in the examples folder named 
-demo_ports_01.yaml. See how this structure matches the tree elaborated by 
-the doc file. 
-
-Now, chekc the construction of a python library from scratch, and how it
-can be serialized into JSON.
-
-
-```
-$ /usr/bin/python3 serialize_demo_port.py
+```bash
+$ sudo ovs-ofctl dump-flows s1
 ```
 
-Open the file serialize_demo_port.py and check how to load the demo_port.py
-source file and fill the data structure offered by the YANG module demo-port.
+In another terminal execute the app simple_switch_13 with the Ryu controller.
 
-
-## Part 4 (EXTRA): Understanding YANG-enabled transport protocols
-
-This is the last part of the: ONF Connect 2019 Next-Gen SDN Tutorial.
-Source material can be obtained: https://github.com/opennetworkinglab/ngsdn-tutorial.
-
-To build the dependencies for this part, follow the steps below.
-
-```
-$ git clone https://github.com/opennetworkinglab/ngsdn-tutorial
-$ cd ~/ngsdn-tutorial
-$ git pull origin master
-$ make pull-deps
+```bash
+$ ryu-manager ryu.app.simple_switch_13
 ```
 
-There are several YANG-model agnostic protocols that can be used to get or set
-data that adheres to a model, like NETCONF, RESTCONF, and gNMI.
+Observe again the flow rules installed in the switch s1.
 
-This part focuses on using the protobuf encoding over gNMI.
-
-First, make sure that your Mininet container is still running.
-
-```
-$ make start
-docker-compose up -d
-mininet is up-to-date
-onos is up-to-date
+```bash
+$ sudo ovs-ofctl dump-flows s1
 ```
 
-If you see the following output, then Mininet was not running:
+:::danger
+What is the function of the observed flow entry?
 
-```
-Starting mininet ... done
-Starting onos    ... done
-```
+Hint: Open the file /ryu/ryu/app/simple_switch_13.py and check the function that handles the event EventOFPSwitchFeatures.
+:::
 
-You will need to go back to Exercise 1 and install forwarding rules to
-re-establish pings between `h1a` and `h1b` for later parts of this exercise.
+In the simple_switch_13.py file openned look for the function `add_flow()`.
 
-Next, we will use a [gNMI client CLI](https://github.com/Yi-Tseng/Yi-s-gNMI-tool)
-to read the all of the configuration from the Stratum switche `leaf1` in our
-Mininet network:
+:::danger
+What are the arguments (input fields) of that function? 
 
-```
-$ util/gnmi-cli --grpc-addr localhost:50001 get /
-```
+What is the flow installed by such function?
+:::
 
-The first part of the output shows the request that was made by the CLI:
-```
-REQUEST
-path {
-}
-type: CONFIG
-encoding: PROTO
-```
+In the mininet console, run a ping among h1 and h2 (e.g., `ping h1 -c5 h2`). Observe how the first packet rtt is bigger than the others.
 
-The path being requested is the empty path (which means the root of the config
-tree), the type of data is just the config tree, and the requested encoding for
-the response is protobuf.
 
-The second part of the output shows the response from Stratum:
-```
-RESPONSE
-notification {
-  update {
-    path {
-    }
-    val {
-      any_val {
-        type_url: "type.googleapis.com/openconfig.Device"
-        value: \252\221\231\304\001\... TRUNCATED
-      }
-    }
-  }
-}
+:::danger
+
+Look for the Openflow messages in Wireshark, what are the new Openflow packets seen when compared to the previous exercises in Part 1?
+
+How those packets were created? What is the purpose of those packets?
+:::
+
+
+## Part 3: REST API
+
+In this part we will exercise how Ryu can enable a REST API to interface the control plane of switches. Take a look at the app in https://ryu.readthedocs.io/en/latest/app/ofctl\_rest.html. 
+The REST API can be utilized by external applications to manage the controller and its interfaced data plane components.
+
+In the previous part the hosts h1 and h2 were interconnected by a *reactive* application, in this part we work with a *proactive* methods, as if an application already "knew" h1 and h2 need connectivity.
+
+
+If not yet ended, finish the previous mininet console, and start a new on using:
+
+```bash
+$ sudo mn –-mac –-switch ovsk –-controller remote –-arp
 ```
 
-You can see that Stratum provides a response of type `openconfig.Device`, which
-is the top-level message defined in `openconfig.proto`. The response is the
-binary encoding of the data based on the protobuf message.
+Start Wireshark to monitor the packets among switch s1 and the controller (i.e., capture packets on the interface lo and apply the filter openflow_v4).
 
-The value is not very human readable, but we can translate the reply using a
-utility that converts between the binary and textual representations of the
-protobuf message.
-
-We can rerun the command, but this time pipe the output through the converter
-utility (then pipe that output to `less` to make scrolling easier):
-
-```
-$ util/gnmi-cli --grpc-addr localhost:50001 get / | util/oc-pb-decoder | less
+```bash
+$ sudo wireshark -i lo -k &
 ```
 
-The contents of the response should be easier to read. Scroll down to the first
-`interface`. Is the interface enabled? What is the speed of the port?
+Now, in another terminal run the application enabling the REST API in Ryu.
 
-*Extra credit:* Can you find `in-pkts`? If not, why do you think they are
-missing?
-
--------
-
-One of the benefits to gNMI is it's "schema-less" encoding that allows clients
-or devices to update only the paths that need to be updated. This is
-particularly useful for subscriptions.
-
-First, let's try out the schema-less representation by requesting the
-configuration port between `leaf1` and `h1a`:
-
-```
-$ util/gnmi-cli --grpc-addr localhost:50001 get \
-    /interfaces/interface[name=leaf1-eth3]/config
+```bash
+$ ryu-manager ryu.app.ofctl_rest ryu.app.simple_switch_restd
 ```
 
-You should see this response containing 2 leafs under config - **enabled** and
-**health-indicator**:
+The JSON message below can be used to request a flow entry to be deployed in a datapath via the ryu controller REST API. 
 
-```
-RESPONSE
-notification {
-  update {
-    path {
-      elem {
-        name: "interfaces"
-      }
-      elem {
-        name: "interface"
-        key {
-          key: "name"
-          value: "leaf1-eth3"
+:::danger
+Copy this message and modify it to create two messages, flow entries, that will be utilized to interconnect h1 and h2. 
+
+Hint: Use some mininet commands to get the needed topology information (e.g., py h1.params, links, intfs, etc).
+
+Fill the fields:
+* dpid: the switch ID (e.g., 1)
+* in_port: interface id of the incoming packets (e.g., 78).
+* eth_dst: the destination MAC address of the packets (e.g., "00:00:33:00:44:55"). 
+* eth_src: the destination MAC address of the packets. 
+* port:  interface id to forward the outcoming packets.
+:::
+
+
+```json
+{
+    "dpid": A,
+    "cookie": 1,
+    "hard_timeout": 0,
+    "priority": 123,
+    "match":{
+        "in_port": a,
+        "eth_dst": "b",
+        "eth_src": "c"
+        },
+    "actions":[
+        {
+        "type":"OUTPUT",
+        "port": d
         }
-      }
-      elem {
-        name: "config"
-      }
-      elem {
-        name: "enabled"
-      }
-    }
-    val {
-      bool_val: true
-    }
-  }
-}
-notification {
-  update {
-    path {
-      elem {
-        name: "interfaces"
-      }
-      elem {
-        name: "interface"
-        key {
-          key: "name"
-          value: "leaf1-eth3"
+    ]
+} 
+```
+
+Open a terminal and run a POST request to the controller, using the flows created previously.
+
+```bash
+$ curl -X POST -d '{
+    "dpid": 1,
+    "cookie": 1,
+    "cookie_mask": 1,
+    "table_id": 0,
+    "idle_timeout": 30,
+    "hard_timeout": 30,
+    "priority": 11111,
+    "flags": 1,
+    "match":{
+        "in_port":22,
+        "eth_src": "aa:bb:cc:dd:ee:ff",
+        "eth_src": "11:22:33:44:55:66"
+    },
+    "actions":[
+        {
+            "type":"OUTPUT",
+            "port": 2
         }
-      }
-      elem {
-        name: "config"
-      }
-      elem {
-        name: "health-indicator"
-      }
-    }
-    val {
-      string_val: "GOOD"
-    }
-  }
-}
+    ]
+ }' http://localhost:8080/stats/flowentry/add
 ```
 
-The schema-less representation provides and `update` for each leaf containing
-both the path the value of the leaf. You can confirm that the interface
-is enabled (set to `true`).
+Check if the flow entries were actually created.
 
-Next, we will subscribe to the ingress unicast packet counters for the interface
-on `leaf1` attached to `h1a` (port 3):
-
-```
-$ util/gnmi-cli --grpc-addr localhost:50001 \
-    --interval 1000 sub-sample \
-    /interfaces/interface[name=leaf1-eth3]/state/counters/in-unicast-pkts
+```bash
+$ sudo ovs-ofctl dump-flows s1
 ```
 
-The first part of the output shows the request being made by the CLI:
-```
-REQUEST
-subscribe {
-  subscription {
-    path {
-      elem {
-        name: "interfaces"
-      }
-      elem {
-        name: "interface"
-        key {
-          key: "name"
-          value: "leaf1-eth3"
-        }
-      }
-      elem {
-        name: "state"
-      }
-      elem {
-        name: "counters"
-      }
-      elem {
-        name: "in-unicast-pkts"
-      }
-    }
-    mode: SAMPLE
-    sample_interval: 1000
-  }
-  updates_only: true
-}
+Ping h1 to h2 and check if packets appear in Wireshark. 
+
+```bash
+mininet> h1 ping h2 -c5
 ```
 
-We have the subscription path, the type of subscription (sampling) and the
-sampling rate (every 1000ms, or 1s).
+:::danger
+Comment the differences in the results with the previous Part. 
 
-The second part of the output is a stream of responses:
-```
-RESPONSE
-update {
-  timestamp: 1567895852136043891
-  update {
-    path {
-      elem {
-        name: "interfaces"
-      }
-      elem {
-        name: "interface"
-        key {
-          key: "name"
-          value: "leaf1-eth3"
-        }
-      }
-      elem {
-        name: "state"
-      }
-      elem {
-        name: "counters"
-      }
-      elem {
-        name: "in-unicast-pkts"
-      }
-    }
-    val {
-      uint_val: 1592
-    }
-  }
-}
-```
+What are the benefits brought by the northbound REST API to networking applications?
+:::
 
-Each response has a timestamp, path, and new value. Because we are sampling, you
-should see a new update printed every second. Leave this running, while we
-generate some traffic.
-
-In another window, open the Mininet CLI and start a ping:
-
-```
-$ make mn-cli
-*** Attaching to Mininet CLI...
-*** To detach press Ctrl-D (Mininet will keep running)
-mininet> h1a ping h1b
-```
-
-In the first window, you should see the `uint_val` increase by 1 every second
-while your ping is still running. (If it's not exactly 1, then there could be
-other traffic like NDP messages contributing to the increase.)
-
-You can stop the gNMI subscription using `Ctrl-C`.
-
-------
-
-Finally, we will monitor link events using gNMI's on-change subscriptions.
-
-Start a subscription for the operational status of the first switch's first port:
-
-```
-$ util/gnmi-cli --grpc-addr localhost:50001 sub-onchange \
-    /interfaces/interface[name=leaf1-eth3]/state/oper-status
-```
-
-You should immediately see a response which indicates that port 1 is `UP`:
-
-```
-RESPONSE
-update {
-  timestamp: 1567896668419430407
-  update {
-    path {
-      elem {
-        name: "interfaces"
-      }
-      elem {
-        name: "interface"
-        key {
-          key: "name"
-          value: "leaf1-eth3"
-        }
-      }
-      elem {
-        name: "state"
-      }
-      elem {
-        name: "oper-status"
-      }
-    }
-    val {
-      string_val: "UP"
-    }
-  }
-}
-```
-
-In the shell running the Mininet CLI, let's take down the interface on `leaf1`
-connected to `h1a`:
-
-```
-mininet> sh ifconfig leaf1-eth3 down
-```
-
-You should see a response in your gNMI CLI window showing that the interface on
-`leaf1` connected to `h1a` is `DOWN`:
-
-```
-RESPONSE
-update {
-  timestamp: 1567896891549363399
-  update {
-    path {
-      elem {
-        name: "interfaces"
-      }
-      elem {
-        name: "interface"
-        key {
-          key: "name"
-          value: "leaf1-eth3"
-        }
-      }
-      elem {
-        name: "state"
-      }
-      elem {
-        name: "oper-status"
-      }
-    }
-    val {
-      string_val: "DOWN"
-    }
-  }
-}
-```
-
-We can bring back the interface using the following Mininet command:
-
-```
-mininet> sh ifconfig leaf1-eth3 up
-```
-
-You should see another response in your gNMI CLI window that indicates the
-interface is `UP`.
-
-------
-
-*Extra credit:* We can also use gNMI to disable or enable an interface.
-
-Leave your gNMI subscription for operational status changes running.
-
-In the Mininet CLI, start a ping between two hosts.
-
-```
-mininet> h1a ping h1b
-```
-
-You should see replies being showed in the Mininet CLI.
-
-In a third window, we will use the gNMI CLI to change the configuration value of
-the `enabled` leaf from `true` to `false`.
-
-```
-$ util/gnmi-cli --grpc-addr localhost:50001 set \
-    /interfaces/interface[name=leaf1-eth3]/config/enabled \
-    --bool-val false
-```
-
-In the gNMI set window, you should see request indicating the new value for the
-`enabled` leaf:
-
-```
-REQUEST
-update {
-  path {
-    elem {
-      name: "interfaces"
-    }
-    elem {
-      name: "interface"
-      key {
-        key: "name"
-        value: "leaf1-eth3"
-      }
-    }
-    elem {
-      name: "config"
-    }
-    elem {
-      name: "enabled"
-    }
-  }
-  val {
-    bool_val: false
-  }
-}
-```
-
-In the gNMI subscription window, you should see a new response indicating that
-the operational status of `leaf1-eth3` is `DOWN`:
-
-```
-RESPONSE
-update {
-  timestamp: 1567896891549363399
-  update {
-    path {
-      elem {
-        name: "interfaces"
-      }
-      elem {
-        name: "interface"
-        key {
-          key: "name"
-          value: "leaf1-eth3"
-        }
-      }
-      elem {
-        name: "state"
-      }
-      elem {
-        name: "oper-status"
-      }
-    }
-    val {
-      string_val: "DOWN"
-    }
-  }
-}
-```
-
-And in the Mininet CLI window, you should observe that the ping has stopped
-working.
-
-Next, we can re-nable the port:
-```
-$ util/gnmi-cli --grpc-addr localhost:50001 set \
-    /interfaces/interface[name=leaf1-eth3]/config/enabled \
-    --bool-val true
-```
-
-You should see another update in the gNMI subscription window indicating the
-interface is `UP`, and the ping should resume in the Mininet CLI wondow.
 
 ## Congratulations!
 
-Now you know a little about YANG!
+Now you know a little about Ryu and Openflow!
