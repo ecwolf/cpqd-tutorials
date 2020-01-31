@@ -24,7 +24,7 @@ sudo source ~/.profile
 
 git clone https://github.com/openconfig/ygot
 cd ygot 
-make install
+sudo make install
 
 cd proto_generator/
 go install protogenerator.go
