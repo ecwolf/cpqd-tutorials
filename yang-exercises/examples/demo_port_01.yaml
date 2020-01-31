@@ -1,5 +1,0 @@
-ports:
-  port:
-    - port-number: 1
-      config: 
-        speed: SPEED_10GB

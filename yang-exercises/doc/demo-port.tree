@@ -1,8 +1,0 @@
-module: demo-port
-  +--rw ports
-     +--rw port* [port-number]
-        +--rw port-number    port-number
-        +--rw config
-        |  +--rw speed?   identityref
-        +--ro state
-           +--ro status?   boolean
