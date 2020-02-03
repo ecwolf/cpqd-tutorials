@@ -38,16 +38,20 @@ Follow the steps below:
 Tip: try to use the Linux toolset: ifconfig, route, arp, netstat, ip route, etc. At any time you can finish the mininet session terminal by typing `quit`, `exit` or `Ctrl+D`.
 
 
+:::warning
+Keep in mind: usually the state of switches keep buffered by mininet, so it is recommended to clear them after finishing a topology using:
+
+`$ sudo mn -c`
+:::
+
 ------
 
-## Part2: Running Mininet Topologies
+## Part 2: Running Mininet Topologies
 
-First let's download the topology scripts:
+First let's enter the folder with the topology scripts:
 
 ```bash
-$ git clone https://github.com/intrig-unicamp/ea080.git
-
-$ cd ea080/lab1
+$ cd cpqd-tutorials/01-mininer/ea080
 ```
 
 
@@ -105,7 +109,7 @@ if __name__ == '__main__':
 
 Execute the command pingall in the mininet console, and check if pings fail (i.e., hosts not replying are represented by an X mark).
 
-:::info
+:::danger
 Modify the script so you can run it again and all hosts will be connected by the pingall command.
 :::
 
@@ -158,7 +162,7 @@ if __name__ == '__main__':
 	startNetwork()
 ```
 
-:::info
+:::danger
 Using the ping command, check the rtt and loss between h1 and h2 and h1 and h4. 
 To check the network throughput use the command iperf, e.g., `iperf h1 h2` or `iperf h1 h4`
 :::
@@ -188,7 +192,7 @@ Editing the previous topology script, try to create a (data center like) network
 * Distribution switches (d1 and d2) to access switches (a1, a2, a3, a4): 1 Gbps, 3 ms.
 * Access switches to hosts (h1-8): 100 Mbps, 5 ms.
 
-:::info
+:::danger
 Modify the topology file to insert 15% loss in the link between host h8  switch a4. How to measure the packet loss to h8 using ping? What's the average loss you see in practice?
 Using `iperf`, measure the throughput between: h1 and h2, h1 and h3, and h1 and h5.
 :::
@@ -198,13 +202,13 @@ Change the link parameters as following:
 * Distribution switches (d1 and d2) to access switches (a1, a2, a3, a4): 100 Mbps, 2 ms.
 * Access switches to hosts (h1-8): 10 Mbps, 2 ms.
 
-:::info
+:::danger
 Using `iperf`, measure the throughput between: h1 and h2, h1 and h3, and h1 and h5.
 Explain the differences from the previous exercise.
 :::
 ___
 
-## Part3: Playing with Mininet shell 
+## Part 3: Playing with Mininet shell 
 
 
 Create the following network:
