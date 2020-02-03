@@ -15,6 +15,17 @@ This exercise is divided in three parts:
 
 ## Part 1: Understanding the OSM components
 
+First check is there is an existing service running:
+
+```bash
+$ docker service ls
+
+$ docker stack ls
+```
+
+If OSM is already running, you can skip the initialization.
+
+
 Open a terminal and start OSM:
 
 ```bash
@@ -46,7 +57,11 @@ Check the started osm service containers.
 $ docker stack ps osm | grep -i running
 ```
 
-Open the browser, and enter the OSM web UI at http://127.0.0.1/ with login admin and password admin. 
+:::warning
+Wait until all the services were started by the osm docker stack. 
+:::
+
+Open the browser, and enter the OSM web UI at http://localhost/ with login admin and password admin. 
 
 
 ## Part 2: An Emulated OSM VIM
@@ -85,7 +100,7 @@ $ export VIMEMU_HOSTNAME=$(sudo docker inspect -f '{{range .NetworkSettings.Netw
 
 Attach OSM to vim-emu
 
-```bash=
+```bash/
 $ osm vim-create --name emu-vim1 --user username --password password --auth_url http://$VIMEMU_HOSTNAME:6001/v2.0 --tenant tenantName --account_type openstack
  
 $ osm vim-list
@@ -97,7 +112,10 @@ $ osm vim-list
 Onboarding the VNFs Descriptors
 
 ```bash
+$ cd cpqd-tutorials/06-osm-exercises
+
 $ osm vnfd-create vim-emu/examples/vnfs/ping.tar.gz
+
 $ osm vnfd-create vim-emu/examples/vnfs/pong.tar.gz
 ```
 
@@ -116,9 +134,11 @@ $ osm vnfd-list
 $ osm nsd-list
 ```
 
+:::danger
 
 Check the OSM GUI interface. Click in the left side of the screen, Packages -> VNF Packages or NS Packages.
 There you should see the ping and pong VNFDs and the pingpong NSD.
+:::
 
 
 
