@@ -23,7 +23,9 @@ To login inside the ONOS command line use ssh (password karaf), but first get ON
 ```bash
 $ docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' onos
 
-$ ssh -p 8101 karaf@`**ONOS IP Address**`
+# The command above will return ONOS IP Address to be used in the next command
+
+$ ssh -p 8101 karaf@`ONOS IP Address`
 ```
 
 From now on, commands willb e typed in the ONOS interactive CLI. For instance, check which apps are activated.
@@ -40,7 +42,9 @@ Probably you will not see any Topology devices in the initial screen, so let's s
 
 
 ```bash
-sudo mn --topo=att --custom=onos-exercises/rftesttopo.py --controller remote,ip=`*ONOS IP Address*` --switch ovs,protocols=OpenFlow13 --mac
+$ cd cpqd-tutorials/06-onos-exercises
+
+$ sudo mn --topo=att --custom=rftesttopo.py --controller remote,ip=`*ONOS IP Address*` --switch ovs,protocols=OpenFlow13 --mac
 ```
 
 :::danger
@@ -245,11 +249,13 @@ To tear-down mininet and onos:
 
 ```bash
 mininet> exit
+
 $ sudo mn -c
 ```
 
 ```bash
 $ docker stop -t0 onos
+
 $ docker rm onos
 ```
 
