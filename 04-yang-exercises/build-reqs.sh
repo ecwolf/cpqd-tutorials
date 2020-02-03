@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-sudo apt-get install git python3-pip libxml2-utils protobuf-compiler golang-go golang-goprotobuf-dev
+sudo apt-get install git python3-pip libxml2-utils protobuf-compiler golang-go golang-goprotobuf-dev unzip
 
-sudo pip3 install pyang pyangbind pytest unzip
+sudo pip3 install pyang pyangbind pytest
 
 wget https://github.com/protocolbuffers/protobuf/releases/download/v3.11.2/protoc-3.11.2-linux-x86_64.zip
 mkdir protoc
@@ -20,7 +20,8 @@ mkdir $HOME/go/pkg
 sudo echo 'export GOPATH=$HOME/go' >> ~/.profile
 sudo echo 'export GOBIN=$HOME/go/bin' >> ~/.profile
 sudo echo 'export PATH=$PATH:/usr/local/go/bin:$GOBIN' >> ~/.profile
-sudo source ~/.profile
+
+source ~/.profile
 
 git clone https://github.com/openconfig/ygot
 cd ygot 

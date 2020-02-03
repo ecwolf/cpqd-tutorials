@@ -16,7 +16,7 @@ def check_against_model(yaml_path):
     model.
     """
     with open(yaml_path, "r") as f:
-        demo_port_data = yaml.load(f, Loader=yaml.FullLoader)
+        demo_port_data = yaml.load(f, Loader=yaml.SafeLoader)
         demo_port_model = pybindJSON.loads_ietf(
             demo_port_data, demo_port, MODEL_NAME)
         
