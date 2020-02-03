@@ -61,7 +61,7 @@ Let's implement our first Openflow App, a learning switch. Let's discuss how a s
 
 
 ### Ryu Controller
-Let's look into some Ryu elements in order to conclude the exercise. For more information take a look at  https://github.com/osrg/ryu http://ryu.readthedocs.io/en/latest/
+Let's look into some Ryu elements in order to conclude the exercise. For more information take a look at  https://github.com/osrg/ryu and http://ryu.readthedocs.io/en/latest/.
 
 1. ofp_event: this class abstracts the allowed events the data plane can trigger to the control plane. The Ryu controller can be oriented on these events, and take actions when they take place. In the example below such artifact is used through a python decorator, executing a function when the event PacketIn takes place. 
 
