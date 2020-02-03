@@ -26,7 +26,7 @@ To make this easier, we can use a tool called `pyang` to try to visualize the st
 Open a terminal, enter the yang-tutorial folder, and run `pyang` on the `demo-port.yang` model:
 
 ```bash
-$ cd yang-tutorial
+$ cd cpqd-tutorials/04-yang-exercises
 $ pyang -f tree demo-port.yang
 ```
 
