@@ -8,6 +8,26 @@ The steps to be followed in each one of the parts are contained in the sections 
 
 
 
+:::danger
+**MUST DO:** Before starting any of the exercises, execute the following commands:
+
+```bash
+$ cd cpqd-tutorials/02-mininet-wifi/mininet-wifi
+
+$ git checkout 93e832
+
+$ sudo make install
+```
+
+The commands above will set and install the mininet-wifi to the version existent in the book, so the exercises will be executed correctly.
+:::
+
+
+
+:::warning
+Remember: The mininet-wifi folder is located at: `~/cpqd-tutorials/02-mininet-wifi/mininet-wifi`
+:::
+
 ## First steps with Mininet-wifi
 
 After following the steps of Section 2.1:
@@ -42,7 +62,8 @@ Access the script mininet-wifi/examples/position.py and change the net.plotGraph
 After following the steps of Section 2.10:
 
 :::danger
-Use the file position.py to create a figure or table representing the measurements of throughput using iperf from a node distancing at ***x** meters*.
+Using the file position.py, measure the throughput between sta1 and sta2 considering a growing value of distance between them (e.g., 2, 8, 16, 32 , 64, 128 Meters). Use the results obtained to create a tabe or figure that compares throughput to distance.
+
 
 Feel free to use any propagation model. For each distance provide the sinal level (RSSI) and throughput (Mbps) observed in the measurements.
 :::
