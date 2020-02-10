@@ -51,7 +51,7 @@ Keep in mind: usually the state of switches keep buffered by mininet, so it is r
 First let's enter the folder with the topology scripts:
 
 ```bash
-$ cd cpqd-tutorials/01-mininer/ea080
+$ cd cpqd-tutorials/01-mininer/ea080/lab1
 ```
 
 
