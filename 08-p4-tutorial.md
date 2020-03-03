@@ -36,13 +36,52 @@ In this code, identify the parts of the code where the following operations are 
 - Egress port definition
 - Checksum calculation
 
-After identified the parts of the code, we are going to execute our first P4 program with mininet.
+After identifying the parts of the code, we are going to execute our first P4 program with mininet.
 
-When we write a P4 code, the first step is to compile the code, to verify if there is no error, and then we run with mininet.
+When we write a P4 code, the first step is to compile the code, to verify any error, and then we run with mininet.
 
-To facilitate the process, use the command `make` to compile and run.
+To facilitate the process, use the command `make`, this will:
 
+- compile `basic.p4`, and
 
+- start a Mininet instance with four switches (`s1`, `s2`. `s3`. `s4`) connected to four hosts (`h1`, `h2`, `h3`, `h4`).
+
+- The hosts are assigned IPs of `10.0.1.1`, `10.0.2.2`, `10.0.3.3`, `10.0.4.4`.
+
+<p align="center">
+  <img src="fig/pod-topo.png">
+</p>
+
+After running the command `make`, open external consoles for `h1` and `h4`.
+
+```bash
+mininet> xterm h1 h4
+```
+
+In the external console of `h4` run the command:
+
+```bash
+$ ./receive.py
+```
+
+The *receive.py* script will capture the incoming packets and will parse their information.
+
+In the external console of `h1` run the command:
+
+```bash
+$ ./send.py 10.0.4.4 "P4 is cool"
+```
+the *send.py* script will generate and send 1 packet.
+
+:::danger
+With the information of `h1` and `h4`, identify:
+
+- Why the Ethernet (src and dst) of the packet sent by `h1` are different in `h4`.
+
+- Which actions where applied in the switch during the forwarding process.
+
+- The TTL value of the packet received in `h4` is correct? Why?
+:::
 
 ## Part 3: Programming with P4
 
